@@ -1,0 +1,45 @@
+{
+  "name": "bramble",
+  "version": "1.0.0",
+  "description": "Discord bot for managing book club polls, meetings, and Q&A",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsdown",
+    "dev": "node --import tsx src/main.ts",
+    "start": "node dist/main.js",
+    "check": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "db:push": "pnpm drizzle-kit push",
+    "db:generate": "pnpm drizzle-kit generate",
+    "db:migrate": "pnpm drizzle-kit migrate",
+    "db:check": "pnpm drizzle-kit check",
+    "db:studio": "pnpm drizzle-kit studio"
+  },
+  "keywords": ["discord", "book-club", "polls"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.15.15",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.44.6"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.2",
+    "@effect/language-service": "^0.41.1",
+    "@effect/platform": "^0.92.1",
+    "@effect/platform-node": "^0.98.3",
+    "@types/node": "^24.7.1",
+    "dfx": "^0.126.0",
+    "drizzle-kit": "^0.31.5",
+    "effect": "^3.18.4",
+    "groq-sdk": "^0.33.0",
+    "tsdown": "^0.15.7",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  }
+}
