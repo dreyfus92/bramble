@@ -15,6 +15,24 @@ export const guilds = sqliteTable('guilds', {
 });
 
 // ============================================================================
+// Book Questions (Simple - for meetup prep)
+// ============================================================================
+
+/**
+ * Book questions table.
+ * Stores questions submitted by users for book discussion meetups.
+ */
+export const bookQuestions = sqliteTable('book_questions', {
+	id: int().primaryKey({ autoIncrement: true }).notNull(),
+	guildId: text().notNull(),
+	oderId: text().notNull(),
+	userTag: text().notNull(),
+	book: text().notNull(),
+	question: text().notNull(),
+	submittedAt: text().notNull(),
+});
+
+// ============================================================================
 // Polls
 // ============================================================================
 
@@ -24,9 +42,7 @@ export const guilds = sqliteTable('guilds', {
  */
 export const polls = sqliteTable('polls', {
 	id: int().primaryKey({ autoIncrement: true }).notNull(),
-	guildId: text()
-		.notNull()
-		.references(() => guilds.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+	guildId: text().notNull(),
 	channelId: text().notNull(),
 	messageId: text().notNull().unique(),
 	question: text().notNull(),
@@ -48,46 +64,8 @@ export const pollVotes = sqliteTable('poll_votes', {
 		.notNull()
 		.references(() => polls.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
 	optionIndex: int().notNull(),
-	userId: text().notNull(),
+	oderId: text().notNull(),
 	votedAt: text().notNull(),
-});
-
-// ============================================================================
-// Book Sessions
-// ============================================================================
-
-/**
- * Book sessions table.
- * Represents a book club reading session for a specific book.
- */
-export const bookSessions = sqliteTable('book_sessions', {
-	id: int().primaryKey({ autoIncrement: true }).notNull(),
-	guildId: text()
-		.notNull()
-		.references(() => guilds.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-	bookTitle: text().notNull(),
-	bookAuthor: text(),
-	startDate: text().notNull(),
-	endDate: text(),
-	active: int().notNull().default(1),
-	createdBy: text().notNull(),
-	createdAt: text().notNull(),
-});
-
-/**
- * Session questions table.
- * Stores questions submitted by users for book discussion.
- */
-export const sessionQuestions = sqliteTable('session_questions', {
-	id: int().primaryKey({ autoIncrement: true }).notNull(),
-	sessionId: int()
-		.notNull()
-		.references(() => bookSessions.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-	userId: text().notNull(),
-	question: text().notNull(),
-	submittedAt: text().notNull(),
-	/** Optional: which chapter/section the question relates to */
-	chapter: text(),
 });
 
 // ============================================================================
@@ -100,11 +78,9 @@ export const sessionQuestions = sqliteTable('session_questions', {
  */
 export const meetings = sqliteTable('meetings', {
 	id: int().primaryKey({ autoIncrement: true }).notNull(),
-	guildId: text()
-		.notNull()
-		.references(() => guilds.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-	sessionId: int().references(() => bookSessions.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+	guildId: text().notNull(),
 	title: text().notNull(),
+	book: text(),
 	description: text(),
 	scheduledAt: text().notNull(),
 	channelId: text(),
@@ -113,22 +89,3 @@ export const meetings = sqliteTable('meetings', {
 	createdBy: text().notNull(),
 	createdAt: text().notNull(),
 });
-
-// ============================================================================
-// LLM Rate Limiting
-// ============================================================================
-
-/**
- * LLM usage tracking table.
- * Tracks per-user usage of the Groq LLM for rate limiting.
- */
-export const llmUsage = sqliteTable('llm_usage', {
-	id: int().primaryKey({ autoIncrement: true }).notNull(),
-	userId: text().notNull(),
-	guildId: text()
-		.notNull()
-		.references(() => guilds.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
-	requestCount: int().notNull().default(0),
-	windowStart: text().notNull(),
-});
-

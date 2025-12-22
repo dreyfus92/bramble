@@ -9,12 +9,11 @@
  * - Groq-powered Q&A with rate limiting
  */
 
+import 'dotenv/config';
 import { NodeRuntime } from '@effect/platform-node';
 import { Config, Effect, Layer, Logger, LogLevel, RuntimeFlags } from 'effect';
-import CacheService from './core/effect-cache.ts';
 import { DiscordGatewayLayer } from './core/discord-gateway.ts';
-import { EventBusLive } from './core/event-bus.ts';
-import { GroqAiHelpers } from './core/groq.ts';
+import { DrizzleDBClientService } from './core/db-client.ts';
 import { buildBookClubLiveLayer } from './services/index.ts';
 
 const BRAND_ART = `
@@ -45,9 +44,7 @@ const BotDependenciesLive = Layer.mergeAll(
 	DiscordGatewayLayer,
 	LogLevelLive,
 	RuntimeFlags.disableRuntimeMetrics,
-	EventBusLive,
-	GroqAiHelpers.Default,
-	CacheService.Default
+	DrizzleDBClientService.Default
 );
 
 /**

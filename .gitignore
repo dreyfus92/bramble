@@ -36,3 +36,6 @@ tmp/
 coverage/
 .direnv/
 .turso/
+
+# Misc Files
+bot_plan.md
