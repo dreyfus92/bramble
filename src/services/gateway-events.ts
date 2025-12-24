@@ -3,7 +3,7 @@ import { InteractionsRegistry } from 'dfx/gateway';
 import { Effect, Layer } from 'effect';
 import { DrizzleDBClientService } from '../core/db-client.ts';
 import * as schema from '../core/db-schema.ts';
-import { like } from 'drizzle-orm';
+import { eq, like } from 'drizzle-orm';
 
 /**
  * Gateway events service.
@@ -12,6 +12,57 @@ import { like } from 'drizzle-orm';
 const make = Effect.gen(function* () {
 	const registry = yield* InteractionsRegistry;
 	const db = yield* DrizzleDBClientService;
+
+	// Helper: Save question to database
+	const saveQuestion = (
+		guildId: string,
+		oderId: string,
+		userTag: string,
+		book: string,
+		question: string
+	) =>
+		db.execute((client) =>
+		client.insert(schema.bookQuestions).values({
+			guildId,
+			oderId,
+			userTag,
+			book: book.trim().toLowerCase(),
+			question: question.trim(),
+				submittedAt: new Date().toISOString(),
+			})
+		);
+
+	// Helper: Create response with "Add Another" / "Done" buttons
+	const createSubmitResponse = (book: string, question: string, username: string) => {
+		console.log('[DEBUG] createSubmitResponse called with book:', book, 'question:', question);
+		const encodedBook = encodeURIComponent(book.trim());
+		console.log('[DEBUG] Creating button with custom_id: add_another_q:' + encodedBook);
+		return {
+			type: 4 as const,
+			data: {
+				content: `✅ **Question submitted!**\n\n📚 **Book:** ${book}\n❓ **Question:** ${question}\n👤 **By:** ${username}\n\n_Want to add another question for this book?_`,
+				components: [
+					{
+						type: 1 as const, // Action Row
+						components: [
+							{
+								type: 2 as const, // Button
+								style: 1 as const, // Primary (blue)
+								label: '➕ Add Another',
+								custom_id: `add_another_q:${encodedBook}`,
+							},
+							{
+								type: 2 as const, // Button
+								style: 2 as const, // Secondary (gray)
+								label: '✅ Done',
+								custom_id: 'done_adding_q',
+							},
+						],
+					},
+				],
+			},
+		};
+	};
 
 	// /ping command
 	const ping = Ix.global(
@@ -78,26 +129,132 @@ const make = Effect.gen(function* () {
 					const guildId = interaction.guild_id || 'DM';
 
 					// Save to database
-					yield* db.execute((client) =>
-						client.insert(schema.bookQuestions).values({
-							guildId,
-							oderId: user.id,
-							userTag: user.username,
-							book: book.trim(),
-							question: question.trim(),
-							submittedAt: new Date().toISOString(),
-						})
-					);
+					yield* saveQuestion(guildId, user.id, user.username, book, question);
 
+					return createSubmitResponse(book, question, user.username);
+				})
+			)
+		)
+	);
+
+	// Button handler: "Add Another" - Opens modal
+	const addAnotherButton = Ix.messageComponent(
+		Ix.idStartsWith('add_another_q:'),
+		Ix.Interaction.pipe(
+			Effect.flatMap((interaction) =>
+				Effect.gen(function* () {
+					const data = interaction.data;
+					if (!data || !('custom_id' in data)) {
+						return {
+							type: 4 as const,
+							data: { content: '❌ Invalid interaction', flags: 64 },
+						};
+					}
+
+					// Extract book name from custom_id
+					const customId = data.custom_id;
+					console.log('[DEBUG] Button custom_id:', customId);
+					const encodedBook = customId.replace('add_another_q:', '');
+					console.log('[DEBUG] Encoded book from button:', encodedBook);
+
+					// Return modal response
 					return {
-						type: 4 as const,
+						type: 9 as const, // MODAL
 						data: {
-							content: `✅ **Question submitted!**\n\n📚 **Book:** ${book}\n❓ **Question:** ${question}\n👤 **By:** ${user.username}`,
+							custom_id: `submit_q_modal:${encodedBook}`,
+							title: 'Add Another Question',
+							components: [
+								{
+									type: 1 as const, // Action Row
+									components: [
+										{
+											type: 4 as const, // Text Input
+											custom_id: 'question_input',
+											label: 'Your Question',
+											style: 2 as const, // Paragraph (multi-line)
+											placeholder: 'Enter your question for the book discussion...',
+											required: true,
+											min_length: 5,
+											max_length: 500,
+										},
+									],
+								},
+							],
 						},
 					};
 				})
 			)
 		)
+	);
+
+	// Modal submit handler
+	const questionModal = Ix.modalSubmit(
+		Ix.idStartsWith('submit_q_modal:'),
+		Ix.Interaction.pipe(
+			Effect.flatMap((interaction) =>
+				Effect.gen(function* () {
+					const data = interaction.data;
+					if (!data || !('custom_id' in data) || !('components' in data)) {
+						return {
+							type: 4 as const,
+							data: { content: '❌ Invalid modal data', flags: 64 },
+						};
+					}
+
+					// Extract book name from custom_id
+					const customId = data.custom_id;
+					console.log('[DEBUG] Modal custom_id:', customId);
+					const encodedBook = customId.replace('submit_q_modal:', '');
+					console.log('[DEBUG] Encoded book:', encodedBook);
+					const book = decodeURIComponent(encodedBook);
+					console.log('[DEBUG] Decoded book:', book);
+
+					// Extract question from modal components
+					const components = data.components as Array<{
+						type: number;
+						components: Array<{ custom_id: string; value: string }>;
+					}>;
+					const questionInput = components
+						.flatMap((row) => row.components)
+						.find((c) => c.custom_id === 'question_input');
+
+					const question = questionInput?.value;
+					if (!question) {
+						return {
+							type: 4 as const,
+							data: { content: '❌ No question provided', flags: 64 },
+						};
+					}
+
+					const user = interaction.member?.user || interaction.user;
+					if (!user) {
+						return {
+							type: 4 as const,
+							data: { content: '❌ Could not identify user.', flags: 64 },
+						};
+					}
+
+					const guildId = interaction.guild_id || 'DM';
+
+					// Save to database
+					yield* saveQuestion(guildId, user.id, user.username, book, question);
+
+					return createSubmitResponse(book, question, user.username);
+				})
+			)
+		)
+	);
+
+	// Button handler: "Done"
+	const doneButton = Ix.messageComponent(
+		Ix.id('done_adding_q'),
+		Effect.succeed({
+			type: 4 as const,
+			data: {
+				content: '✅ **All questions submitted!** Thanks for contributing to the discussion. 📚',
+				flags: 64, // Ephemeral
+			},
+		})
 	);
 
 	// /listquestions command
@@ -142,7 +299,7 @@ const make = Effect.gen(function* () {
 						client
 							.select()
 							.from(schema.bookQuestions)
-							.where(like(schema.bookQuestions.book, `%${book.trim()}%`))
+							.where(eq(schema.bookQuestions.book, book.trim().toLowerCase()))
 					);
 
 					// Filter by guild
@@ -169,11 +326,11 @@ const make = Effect.gen(function* () {
 							content: `📚 **Questions for "${book}"** (${guildQuestions.length} total)\n\n${questionList}`,
 							components: [
 								{
-									type: 1, // Action Row
+									type: 1 as const, // Action Row
 									components: [
 										{
-											type: 2, // Button
-											style: 2, // Secondary (gray)
+											type: 2 as const, // Button
+											style: 2 as const, // Secondary (gray)
 											label: '📋 Plain Text (Copy)',
 											custom_id: `plaintext_questions:${encodedBook}`,
 										},
@@ -252,6 +409,9 @@ const make = Effect.gen(function* () {
 	const interactions = Ix.builder
 		.add(ping)
 		.add(submitQuestion)
+		.add(addAnotherButton)
+		.add(questionModal)
+		.add(doneButton)
 		.add(listQuestions)
 		.add(plainTextButton)
 		.catchAllCause(Effect.logError);
@@ -268,7 +428,7 @@ const make = Effect.gen(function* () {
 	//
 	// DONE:
 	// ✅ /ping
-	// ✅ /submitquestion [book] [question]
+	// ✅ /submitquestion [book] [question] (with Add Another flow)
 	// ✅ /listquestions [book] (with Plain Text button)
 
 	yield* Effect.log('Gateway events service initialized');
