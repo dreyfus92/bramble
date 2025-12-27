@@ -1,4 +1,5 @@
 import { int, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 // ============================================================================
 // Guild Configuration
@@ -22,12 +23,21 @@ export const guilds = sqliteTable('guilds', {
  * Book questions table.
  * Stores questions submitted by users for book discussion meetups.
  */
+
+export const bookSelection = sqliteTable('Book', {
+	id: int().primaryKey({ autoIncrement: true }).notNull(),
+	bookTitle: text().notNull(),
+	submittedAt: text().notNull(),
+	meetingDate: text().notNull(),
+	isActive: int().default(0)
+});
+
 export const bookQuestions = sqliteTable('book_questions', {
 	id: int().primaryKey({ autoIncrement: true }).notNull(),
 	guildId: text().notNull(),
 	oderId: text().notNull(),
 	userTag: text().notNull(),
-	book: text().notNull(),
+	book: int().references((): AnySQLiteColumn => bookSelection.id),
 	question: text().notNull(),
 	submittedAt: text().notNull(),
 });
@@ -89,3 +99,5 @@ export const meetings = sqliteTable('meetings', {
 	createdBy: text().notNull(),
 	createdAt: text().notNull(),
 });
+
+

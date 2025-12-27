@@ -49,6 +49,7 @@ const make = Effect.gen(function* () {
 			Effect.flatMap((interaction) =>
 				Effect.gen(function* () {
 					const data = interaction.data;
+					console.log(data)
 					if (!data || !('options' in data) || !data.options) {
 						return {
 							type: 4 as const,
@@ -80,10 +81,10 @@ const make = Effect.gen(function* () {
 					// Save to database
 					yield* db.execute((client) =>
 						client.insert(schema.bookQuestions).values({
-							guildId,
+							guildId:guildId,
 							oderId: user.id,
 							userTag: user.username,
-							book: book.trim(),
+							book: 34,
 							question: question.trim(),
 							submittedAt: new Date().toISOString(),
 						})
@@ -98,6 +99,62 @@ const make = Effect.gen(function* () {
 				})
 			)
 		)
+	);
+
+	// create Book
+	const createbook = Ix.global(
+		{
+			name: 'createbook',
+			description: 'Create a new book entry',
+			options:  [
+				{
+					type: 3, // STRING
+					name: 'title',
+					description: 'The book title',
+					required: true,
+				},
+				
+			],
+		},
+		Ix.Interaction.pipe(
+			Effect.flatMap((interaction) =>
+				Effect.gen(function* () {
+					const data = interaction.data;
+					console.log(data)
+					if (!data || !('options' in data) || !data.options) {
+						return {
+							type: 4 as const,
+							data: { content: '❌ Invalid interaction data' },
+						};
+					}
+
+					const options = data.options as Array<{ name: string; value: string }>;
+					const book = options.find((opt) => opt.name === 'title')?.value;
+					if (!book)
+						return {
+							type: 4 as const,
+							data: {content: 'failed to register book'}
+						};
+
+					const date = new Date();
+					const defaultoffset = date.getTime()+1814400000
+					const defaultoffsettimestamp = new Date(defaultoffset).toISOString()
+					const timestamp = date.toISOString()
+
+					yield* db.execute((client) =>
+						client.insert(schema.bookSelection).values({
+							bookTitle:book,
+							submittedAt:timestamp,
+							meetingDate:defaultoffsettimestamp
+						})
+					);
+					return {
+							type: 4 as const,
+							data: { content: ' book submitted' },
+						};
+				})	
+			)
+		)	
 	);
 
 	// /listquestions command
@@ -252,8 +309,10 @@ const make = Effect.gen(function* () {
 	const interactions = Ix.builder
 		.add(ping)
 		.add(submitQuestion)
-		.add(listQuestions)
+		.add(createbook)
 		.add(plainTextButton)
+		.add(listQuestions)
+		
 		.catchAllCause(Effect.logError);
 
 	yield* registry.register(interactions);
