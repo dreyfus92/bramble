@@ -190,46 +190,136 @@ const make = Effect.gen(function* () {
 		)
 	);
 
-    // create Book
-	
-	const choices = yield* db.execute(
+	const bookOptions = Ix.messageComponent(
+		Ix.idStartsWith('book-select'),
+		Ix.Interaction.pipe(
+			Effect.flatMap((interaction) =>
+				Effect.gen(function* () {
+					const data = interaction.data;
+					// based on unique Key
+					
+					
+					if (!data || !('custom_id' in data) || !('values' in data)) {
+						return {
+							type: 4 as const,
+							data: { content: '❌ Invalid interaction', flags: 64 },
+						};
+					}
+					
+					const bookKey = Number(data.values[0])
+					console.log(bookKey)
+					const Bookchoice =  yield* db.execute(
 						(client)=>
 						client.select({
-							name:schema.bookSelection.bookTitle,
-							value:schema.bookSelection.bookTitle
+							title:schema.bookSelection.bookTitle,
+							id:schema.bookSelection.id,
+							meetingdate: schema.bookSelection.meetingDate
 						})
-							.from(schema.bookSelection)
+							.from(schema.bookSelection).where(eq(schema.bookSelection.id,bookKey))
 						)
+					console.log(Bookchoice[0])
+					
+					// Return modal response
+					return {
+						type: 9 as const, // MODAL
+						data: {
+							custom_id: `submit`,
+							title: 'Modify book attributes',
+							components: [
+								{
+									type: 1 as const, // Action Row
+									components: [
+										{
+											type: 4 as const, // Text Input
+											custom_id: 'book_name',
+											label: 'Rename',
+											style: 1 as const, // Paragraph (multi-line)
+											placeholder: Bookchoice[0]['title'],
+											required: false,
+											min_length: 0,
+											max_length: 100,
+										}
+									],
+								},
+								{
+									type: 1 as const, // Action Row
+									components: [
+										{
+											type: 4 as const, // Text Input
+											custom_id: 'book_link',
+											label: 'Link',
+											style: 1 as const, // Paragraph (multi-line)
+											placeholder: '',
+											required: false,
+											min_length: 0,
+											max_length: 20,
+										}
+									],
+								},
+								{
+									type: 1 as const, // Action Row
+									components: [
+										{
+											type: 4 as const, // Text Input
+											custom_id: 'meeting_date',
+											label: 'meeting date',
+											style: 1 as const, // Paragraph (multi-line)
+											placeholder: Bookchoice[0]['meetingdate'],
+											required: true,
+											min_length: 0,
+											max_length: 200,
+										}
+									],
+								}
+							],
+						},
+					};
+				})
+			)
+		)
+	);
 
+    // create Book
+
+
+	
 	const getbook = Ix.global({
 		name: 'getbook',
             description: 'Create a new book entry',
-            options:  [
-                {
-                    type: 3, // STRING
-                    name: 'title',
-                    description: 'The book title',
-                    required: true,
-					"choices": choices
-                },
-                
-            ],
+            
 	},
         Ix.Interaction.pipe(
             Effect.flatMap((interaction) =>
                 Effect.gen(function* () {
-                    const data = interaction.data;
-
-                    if (!data || !('options' in data) || !data.options) {
-                        return {
-                            type: 4 as const,
-                            data: { content: '❌ Invalid interaction data' },
-                        };
-                    }
+					
+					const choices =  yield* db.execute(
+						(client)=>
+						client.select({
+							label:schema.bookSelection.bookTitle,
+							value:schema.bookSelection.id
+						})
+							.from(schema.bookSelection)
+						)
+						
 					
                     return {
-                            type: 4 as const,
-                            data: { content: ' book submitted' },
+                            type: 4 ,
+                            data: { content: '' ,
+								components:[{
+									type: 1, // ACTION_ROW
+									components: [
+									{
+										type: 3, // STRING_SELECT
+										custom_id: "book-select",
+										options: choices.map((choice)=>({
+											"label": choice.label,
+											"value": String(choice.value)})
+									),
+										
+									},
+									],
+								}]
+							},
                         };
                 })    
             )
@@ -521,6 +611,7 @@ const make = Effect.gen(function* () {
 		.add(createbook)
 		.add(plainTextButton)
 		.add(getbook)
+		.add(bookOptions)
 		
 		.catchAllCause(Effect.logError);
 
