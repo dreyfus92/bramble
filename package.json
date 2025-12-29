@@ -17,7 +17,11 @@
     "db:check": "pnpm drizzle-kit check",
     "db:studio": "pnpm drizzle-kit studio"
   },
-  "keywords": ["discord", "book-club", "polls"],
+  "keywords": [
+    "discord",
+    "book-club",
+    "polls"
+  ],
   "author": "",
   "license": "MIT",
   "engines": {
@@ -26,7 +30,8 @@
   "dependencies": {
     "@libsql/client": "^0.15.15",
     "dotenv": "^17.2.3",
-    "drizzle-orm": "^0.44.6"
+    "drizzle-orm": "^0.44.6",
+    "pnpm": "^10.26.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.2",

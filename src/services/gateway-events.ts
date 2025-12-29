@@ -1,4 +1,4 @@
-import { Ix } from 'dfx';
+import { Discord, DiscordConfig, Ix } from 'dfx';
 import { InteractionsRegistry } from 'dfx/gateway';
 import { Effect, Layer } from 'effect';
 import { DrizzleDBClientService } from '../core/db-client.ts';
@@ -9,6 +9,7 @@ import { eq, like } from 'drizzle-orm';
  * Gateway events service.
  * Handles Discord gateway events and interaction registration.
  */
+
 const make = Effect.gen(function* () {
 	const registry = yield* InteractionsRegistry;
 	const db = yield* DrizzleDBClientService;
@@ -31,6 +32,7 @@ const make = Effect.gen(function* () {
 				submittedAt: new Date().toISOString(),
 			})
 		);
+	
 
 	// Helper: Create response with "Add Another" / "Done" buttons
 	const createSubmitResponse = (book: string, question: string, username: string) => {
@@ -100,6 +102,7 @@ const make = Effect.gen(function* () {
 			Effect.flatMap((interaction) =>
 				Effect.gen(function* () {
 					const data = interaction.data;
+					console.log(data)
 					if (!data || !('options' in data) || !data.options) {
 						return {
 							type: 4 as const,
@@ -187,6 +190,108 @@ const make = Effect.gen(function* () {
 		)
 	);
 
+    // create Book
+	
+	const choices = yield* db.execute(
+						(client)=>
+						client.select({
+							name:schema.bookSelection.bookTitle,
+							value:schema.bookSelection.bookTitle
+						})
+							.from(schema.bookSelection)
+						)
+
+	const getbook = Ix.global({
+		name: 'getbook',
+            description: 'Create a new book entry',
+            options:  [
+                {
+                    type: 3, // STRING
+                    name: 'title',
+                    description: 'The book title',
+                    required: true,
+					"choices": choices
+                },
+                
+            ],
+	},
+        Ix.Interaction.pipe(
+            Effect.flatMap((interaction) =>
+                Effect.gen(function* () {
+                    const data = interaction.data;
+
+                    if (!data || !('options' in data) || !data.options) {
+                        return {
+                            type: 4 as const,
+                            data: { content: '❌ Invalid interaction data' },
+                        };
+                    }
+					
+                    return {
+                            type: 4 as const,
+                            data: { content: ' book submitted' },
+                        };
+                })    
+            )
+        )    
+    );
+
+	
+    const createbook = Ix.global(
+        {
+            name: 'createbook',
+            description: 'Create a new book entry',
+            options:  [
+                {
+                    type: 3, // STRING
+                    name: 'title',
+                    description: 'The book title',
+                    required: true,
+                },
+                
+            ],
+        },
+        Ix.Interaction.pipe(
+            Effect.flatMap((interaction) =>
+                Effect.gen(function* () {
+                    const data = interaction.data;
+                    console.log(data)
+                    if (!data || !('options' in data) || !data.options) {
+                        return {
+                            type: 4 as const,
+                            data: { content: '❌ Invalid interaction data' },
+                        };
+                    }
+
+                    const options = data.options as Array<{ name: string; value: string }>;
+                    const book = options.find((opt) => opt.name === 'title')?.value;
+                    if (!book)
+                        return {
+                            type: 4 as const,
+                            data: {content: 'failed to register book'}
+                        };
+
+                    const date = new Date();
+                    const defaultoffset = date.getTime()+1814400000
+                    const defaultoffsettimestamp = new Date(defaultoffset).toISOString()
+                    const timestamp = date.toISOString()
+
+                    yield* db.execute((client) =>
+                        client.insert(schema.bookSelection).values({
+                            bookTitle:book,
+                            submittedAt:timestamp,
+                            meetingDate:defaultoffsettimestamp
+                        })
+                    );
+                    return {
+                            type: 4 as const,
+                            data: { content: ' book submitted' },
+                        };
+                })    
+            )
+        )    
+    );
+
 	// Modal submit handler
 	const questionModal = Ix.modalSubmit(
 		Ix.idStartsWith('submit_q_modal:'),
@@ -264,7 +369,7 @@ const make = Effect.gen(function* () {
 			description: 'List all submitted questions for a book',
 			options: [
 				{
-					type: 3, // STRING
+					type: Discord.ApplicationCommandOptionType.STRING, // STRING
 					name: 'book',
 					description: 'The book title to list questions for',
 					required: true,
@@ -413,7 +518,10 @@ const make = Effect.gen(function* () {
 		.add(questionModal)
 		.add(doneButton)
 		.add(listQuestions)
+		.add(createbook)
 		.add(plainTextButton)
+		.add(getbook)
+		
 		.catchAllCause(Effect.logError);
 
 	yield* registry.register(interactions);
