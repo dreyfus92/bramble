@@ -1,17 +1,17 @@
-import { Context, Effect, Fiber, Layer, Queue, Scope } from 'effect';
+import { Context, Effect, Fiber, Layer, Queue, Scope } from "effect";
 
 /**
  * Available application events with their payloads.
  */
 type AvailableAppEvents = {
-	'poll.created': { pollId: number; guildId: string; channelId: string };
-	'poll.voted': { pollId: number; userId: string; optionIndex: number };
-	'poll.ended': { pollId: number; guildId: string };
-	'session.created': { sessionId: number; bookTitle: string; guildId: string };
-	'session.ended': { sessionId: number; guildId: string };
-	'question.submitted': { questionId: number; sessionId: number; userId: string };
-	'meeting.scheduled': { meetingId: number; guildId: string; scheduledAt: string };
-	'meeting.reminder': { meetingId: number; guildId: string };
+	"poll.created": { pollId: number; guildId: string; channelId: string };
+	"poll.voted": { pollId: number; userId: string; optionIndex: number };
+	"poll.ended": { pollId: number; guildId: string };
+	"session.created": { sessionId: number; bookTitle: string; guildId: string };
+	"session.ended": { sessionId: number; guildId: string };
+	"question.submitted": { questionId: number; sessionId: number; userId: string };
+	"meeting.scheduled": { meetingId: number; guildId: string; scheduledAt: string };
+	"meeting.reminder": { meetingId: number; guildId: string };
 };
 
 /**
@@ -26,16 +26,16 @@ export type AppEvents = {
  */
 export interface EventBus {
 	readonly publish: <E extends AppEvents>(event: E) => Effect.Effect<void>;
-	readonly subscribe: <E extends AppEvents['type']>(
+	readonly subscribe: <E extends AppEvents["type"]>(
 		eventType: E,
-		handler: (event: Extract<AppEvents, { type: E }>) => Effect.Effect<void>
+		handler: (event: Extract<AppEvents, { type: E }>) => Effect.Effect<void>,
 	) => Effect.Effect<void>;
 }
 
 /**
  * Event bus context tag.
  */
-export const EventBus = Context.GenericTag<EventBus>('EventBus');
+export const EventBus = Context.GenericTag<EventBus>("EventBus");
 
 /**
  * Creates an event bus with async queue processing.
@@ -57,28 +57,28 @@ const makeEventBus = Effect.gen(function* () {
 				yield* Effect.all(
 					handlers.map((handler) =>
 						Effect.catchAll(handler(event), (error) =>
-							Effect.logError(`Event handler error for ${event.type}`, error)
-						)
+							Effect.logError(`Event handler error for ${event.type}`, error),
+						),
 					),
-					{ concurrency: 'unbounded' }
+					{ concurrency: "unbounded" },
 				);
-			})
-		)
+			}),
+		),
 	);
 
 	// Cleanup when scope closes
 	yield* Scope.addFinalizer(
 		scope,
 		Fiber.interrupt(processorFiber).pipe(
-			Effect.flatMap(() => Effect.log('EventBus processor stopped'))
-		)
+			Effect.flatMap(() => Effect.log("EventBus processor stopped")),
+		),
 	);
 
 	return {
 		publish: <E extends AppEvents>(event: E) => Queue.offer(queue, event),
-		subscribe: <E extends AppEvents['type']>(
+		subscribe: <E extends AppEvents["type"]>(
 			eventType: E,
-			handler: (event: Extract<AppEvents, { type: E }>) => Effect.Effect<void>
+			handler: (event: Extract<AppEvents, { type: E }>) => Effect.Effect<void>,
 		) =>
 			Effect.sync(() => {
 				const handlers = listeners.get(eventType) || [];
@@ -92,4 +92,3 @@ const makeEventBus = Effect.gen(function* () {
  * Live event bus layer.
  */
 export const EventBusLive = Layer.scoped(EventBus, makeEventBus);
-

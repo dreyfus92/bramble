@@ -1,4 +1,4 @@
-import { Clock, Duration, Effect } from 'effect';
+import { Clock, Duration, Effect } from "effect";
 
 /**
  * Cache entry with value, expiration, and tags.
@@ -23,7 +23,7 @@ export interface CacheEntryStatus {
  * Cache miss error.
  */
 export class CacheMissError {
-	readonly _tag = 'CacheMissError';
+	readonly _tag = "CacheMissError";
 }
 
 /**
@@ -35,7 +35,7 @@ export const returnNonNull = <A>(value: A | null): Effect.Effect<A, CacheMissErr
 /**
  * In-memory caching service with TTL and tag-based invalidation.
  */
-export class CacheService extends Effect.Service<CacheService>()('BookClub/CacheService', {
+export class CacheService extends Effect.Service<CacheService>()("BookClub/CacheService", {
 	effect: Effect.gen(function* () {
 		const store = new Map<string, CacheEntry<unknown>>();
 		const tagIndex = new Map<string, Set<string>>();
@@ -63,7 +63,7 @@ export class CacheService extends Effect.Service<CacheService>()('BookClub/Cache
 		const set = <A>(
 			key: string,
 			value: A,
-			options?: { ttl?: Duration.Duration; tags?: string[] }
+			options?: { ttl?: Duration.Duration; tags?: string[] },
 		) =>
 			Effect.gen(function* () {
 				const now = yield* Clock.currentTimeMillis;
@@ -126,13 +126,13 @@ export class CacheService extends Effect.Service<CacheService>()('BookClub/Cache
 		const memoize = <A, E, R>(
 			key: string,
 			effect: Effect.Effect<A, E, R>,
-			options?: { ttl?: Duration.Duration; tags?: string[] }
+			options?: { ttl?: Duration.Duration; tags?: string[] },
 		): Effect.Effect<A, E, R> =>
 			get<A>(key).pipe(
 				Effect.flatMap(returnNonNull),
-				Effect.catchTag('CacheMissError', () =>
-					effect.pipe(Effect.tap((result) => set<A>(key, result, options)))
-				)
+				Effect.catchTag("CacheMissError", () =>
+					effect.pipe(Effect.tap((result) => set<A>(key, result, options))),
+				),
 			);
 
 		/**
@@ -153,7 +153,7 @@ export class CacheService extends Effect.Service<CacheService>()('BookClub/Cache
 					lastUpdatedAt: new Date(entry.lastUpdatedAt),
 					tags: entry.tags,
 				};
-			})
+			}),
 		);
 
 		return { get, set, delete: deleteKey, invalidateTags, clear, memoize, getCacheStatus };
@@ -161,4 +161,3 @@ export class CacheService extends Effect.Service<CacheService>()('BookClub/Cache
 }) {}
 
 export default CacheService;
-

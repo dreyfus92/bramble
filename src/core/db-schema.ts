@@ -1,5 +1,4 @@
-import { int, sqliteTable, text } from 'drizzle-orm/sqlite-core';
-import {AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+import { type AnySQLiteColumn, int, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 // ============================================================================
 // Guild Configuration
@@ -9,7 +8,7 @@ import {AnySQLiteColumn } from "drizzle-orm/sqlite-core";
  * Guild configuration table.
  * Stores per-server settings for the book club bot.
  */
-export const guilds = sqliteTable('guilds', {
+export const guilds = sqliteTable("guilds", {
 	id: text().primaryKey().unique().notNull(),
 	defaultPollChannel: text(),
 	defaultMeetingChannel: text(),
@@ -24,20 +23,20 @@ export const guilds = sqliteTable('guilds', {
  * Stores questions submitted by users for book discussion meetups.
  */
 
-export const bookSelection = sqliteTable('Book', {
+export const bookSelection = sqliteTable("Book", {
 	id: int().primaryKey({ autoIncrement: true }).notNull(),
 	bookTitle: text().notNull(),
 	submittedAt: text().notNull(),
 	meetingDate: text().notNull(),
-	isActive: int().default(0)
+	isActive: int().default(0),
 });
 
-export const bookQuestions = sqliteTable('book_questions', {
+export const bookQuestions = sqliteTable("book_questions", {
 	id: int().primaryKey({ autoIncrement: true }).notNull(),
 	guildId: text().notNull(),
 	oderId: text().notNull(),
 	userTag: text().notNull(),
-	book:text().notNull(),
+	book: text().notNull(),
 	bookid: int().references((): AnySQLiteColumn => bookSelection.id),
 	question: text().notNull(),
 	submittedAt: text().notNull(),
@@ -51,7 +50,7 @@ export const bookQuestions = sqliteTable('book_questions', {
  * Polls table.
  * Stores poll metadata and state.
  */
-export const polls = sqliteTable('polls', {
+export const polls = sqliteTable("polls", {
 	id: int().primaryKey({ autoIncrement: true }).notNull(),
 	guildId: text().notNull(),
 	channelId: text().notNull(),
@@ -69,11 +68,11 @@ export const polls = sqliteTable('polls', {
  * Poll votes table.
  * Tracks individual votes on polls.
  */
-export const pollVotes = sqliteTable('poll_votes', {
+export const pollVotes = sqliteTable("poll_votes", {
 	id: int().primaryKey({ autoIncrement: true }).notNull(),
 	pollId: int()
 		.notNull()
-		.references(() => polls.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+		.references(() => polls.id, { onDelete: "cascade", onUpdate: "cascade" }),
 	optionIndex: int().notNull(),
 	oderId: text().notNull(),
 	votedAt: text().notNull(),
@@ -87,7 +86,7 @@ export const pollVotes = sqliteTable('poll_votes', {
  * Meetings table.
  * Stores scheduled book club meetings.
  */
-export const meetings = sqliteTable('meetings', {
+export const meetings = sqliteTable("meetings", {
 	id: int().primaryKey({ autoIncrement: true }).notNull(),
 	guildId: text().notNull(),
 	title: text().notNull(),
@@ -100,5 +99,3 @@ export const meetings = sqliteTable('meetings', {
 	createdBy: text().notNull(),
 	createdAt: text().notNull(),
 });
-
-

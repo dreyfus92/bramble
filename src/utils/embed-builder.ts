@@ -1,5 +1,5 @@
-import type { Discord } from 'dfx/index';
-import type { Mutable } from 'effect/Types';
+import type { Discord } from "dfx/index";
+import type { Mutable } from "effect/Types";
 
 /**
  * Brand color for book club embeds.
@@ -93,4 +93,3 @@ export class DiscordEmbedBuilder {
 		return this.embed;
 	}
 }
-

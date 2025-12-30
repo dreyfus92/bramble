@@ -1,4 +1,4 @@
 {
-  "recommendations": ["biomejs.biome"],
-  "unwantedRecommendations": []
+	"recommendations": ["biomejs.biome"],
+	"unwantedRecommendations": []
 }

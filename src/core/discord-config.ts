@@ -1,6 +1,6 @@
-import { DiscordConfig, Intents } from 'dfx';
-import { Config } from 'effect';
-import { discordBotToken } from '../static/env.ts';
+import { DiscordConfig, Intents } from "dfx";
+import { Config } from "effect";
+import { discordBotToken } from "../static/env.ts";
 
 /**
  * Discord bot configuration layer.
@@ -16,13 +16,7 @@ export const DiscordConfigLayer = DiscordConfig.layerConfig({
 	token: discordBotToken,
 	gateway: {
 		intents: Config.succeed(
-			Intents.fromList([
-				'GuildMessages',
-				'MessageContent',
-				'Guilds',
-				'GuildMembers',
-			])
+			Intents.fromList(["GuildMessages", "MessageContent", "Guilds", "GuildMembers"]),
 		),
 	},
 });
-

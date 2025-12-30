@@ -1,8 +1,8 @@
-import { NodeHttpClient, NodeSocket } from '@effect/platform-node';
-import { DiscordIxLive } from 'dfx/gateway';
-import { Layer } from 'effect';
-import { DiscordConfigLayer } from './discord-config.ts';
-import { DiscordApplication } from './discord-rest.ts';
+import { NodeHttpClient, NodeSocket } from "@effect/platform-node";
+import { DiscordIxLive } from "dfx/gateway";
+import { Layer } from "effect";
+import { DiscordConfigLayer } from "./discord-config.ts";
+import { DiscordApplication } from "./discord-rest.ts";
 
 /**
  * Discord gateway layer with WebSocket and HTTP client configuration.
@@ -15,7 +15,7 @@ import { DiscordApplication } from './discord-rest.ts';
 const DiscordLayer = DiscordIxLive.pipe(
 	Layer.provideMerge(NodeHttpClient.layerUndici),
 	Layer.provide(NodeSocket.layerWebSocketConstructor),
-	Layer.provide(DiscordConfigLayer)
+	Layer.provide(DiscordConfigLayer),
 );
 
 /**
@@ -23,4 +23,3 @@ const DiscordLayer = DiscordIxLive.pipe(
  * Includes gateway connection and application metadata.
  */
 export const DiscordGatewayLayer = Layer.merge(DiscordLayer, DiscordApplication.Default);
-
