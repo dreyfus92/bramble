@@ -1,4 +1,4 @@
-import { Discord, DiscordConfig, Ix } from 'dfx';
+import { Discord, Ix } from 'dfx';
 import { InteractionsRegistry } from 'dfx/gateway';
 import { Effect, Layer } from 'effect';
 import { DrizzleDBClientService } from '../core/db-client.ts';
@@ -600,6 +600,244 @@ const make = Effect.gen(function* () {
 		)
 	);
 
+	// Types for Open Library API
+	type OpenLibrarySearchResult = {
+		numFound: number;
+		docs: Array<{
+			title: string;
+			author_name?: string[];
+			first_publish_year?: number;
+			subject?: string[];
+			cover_i?: number;
+			ratings_average?: number;
+			ratings_count?: number;
+			key?: string;
+		}>;
+	};
+
+	type OpenLibraryWork = {
+		description?: string | { value: string };
+	};
+
+	// Helper to fetch from Open Library
+	const fetchOpenLibrary = <T>(url: string) =>
+		Effect.tryPromise({
+			try: async () => {
+				const res = await fetch(url);
+				return res.json() as Promise<T>;
+			},
+			catch: () => new Error('Failed to fetch from Open Library'),
+		});
+
+	// /quickcheck command - Search Open Library for book info
+	const quickCheck = Ix.global(
+		{
+			name: 'quickcheck',
+			description: 'Quick lookup of a book\'s description and rating from Open Library',
+			options: [
+				{
+					type: Discord.ApplicationCommandOptionType.STRING,
+					name: 'book',
+					description: 'The book title to search for',
+					required: true,
+				},
+				{
+					type: Discord.ApplicationCommandOptionType.STRING,
+					name: 'author',
+					description: 'Author name (optional, helps narrow results)',
+					required: false,
+				},
+			],
+		},
+		Ix.Interaction.pipe(
+			Effect.flatMap((interaction) =>
+				Effect.gen(function* () {
+					const data = interaction.data;
+					if (!data || !('options' in data) || !data.options) {
+						return {
+							type: 4 as const,
+							data: { content: '❌ Invalid interaction data' },
+						};
+					}
+
+					const options = data.options as Array<{ name: string; value: string }>;
+					const bookTitle = options.find((opt) => opt.name === 'book')?.value;
+					const author = options.find((opt) => opt.name === 'author')?.value;
+
+					if (!bookTitle) {
+						return {
+							type: 4 as const,
+							data: { content: '❌ Please provide a book title.' },
+						};
+					}
+
+					// Build Open Library search URL
+					let searchUrl = `https://openlibrary.org/search.json?limit=1`;
+					if (author) {
+						searchUrl += `&title=${encodeURIComponent(bookTitle)}&author=${encodeURIComponent(author)}`;
+					} else {
+						searchUrl += `&q=${encodeURIComponent(bookTitle)}`;
+					}
+
+					// Search for the book
+					const searchResult = yield* fetchOpenLibrary<OpenLibrarySearchResult>(searchUrl).pipe(
+						Effect.catchAll(() => Effect.succeed({ numFound: 0, docs: [] }))
+					);
+
+					if (searchResult.numFound === 0 || !searchResult.docs[0]) {
+						return {
+							type: 4 as const,
+							data: { content: `📚 No results found for "${bookTitle}"${author ? ` by ${author}` : ''}.` },
+						};
+					}
+
+					const book = searchResult.docs[0];
+
+					// Try to get description from works API
+					let description = '_No description available_';
+					if (book.key) {
+						const workResult = yield* fetchOpenLibrary<OpenLibraryWork>(
+							`https://openlibrary.org${book.key}.json`
+						).pipe(Effect.catchAll(() => Effect.succeed({} as OpenLibraryWork)));
+
+						if (workResult.description) {
+							const rawDesc = typeof workResult.description === 'string'
+								? workResult.description
+								: workResult.description.value;
+							// Truncate to 500 chars
+							description = rawDesc.length > 500
+								? rawDesc.substring(0, 497) + '...'
+								: rawDesc;
+						}
+					}
+
+					// Build rating display
+					let ratingDisplay = '_No ratings yet_';
+					if (book.ratings_average) {
+						const stars = '⭐'.repeat(Math.round(book.ratings_average));
+						ratingDisplay = `${stars} **${book.ratings_average.toFixed(1)}/5**`;
+						if (book.ratings_count) {
+							ratingDisplay += ` (${book.ratings_count.toLocaleString()} ratings)`;
+						}
+					}
+
+					// Build subjects/genres (first 3)
+					const genres = book.subject?.slice(0, 3).join(', ') || '_Unknown_';
+
+					// Cover image URL
+					const coverUrl = book.cover_i
+						? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
+						: null;
+
+					// Build embed response
+					const embed = {
+						title: `📖 ${book.title}`,
+						url: book.key ? `https://openlibrary.org${book.key}` : undefined,
+						color: 0x3498db, // Blue
+						thumbnail: coverUrl ? { url: coverUrl } : undefined,
+						fields: [
+							{
+								name: '✍️ Author',
+								value: book.author_name?.join(', ') || '_Unknown_',
+								inline: true,
+							},
+							{
+								name: '📅 First Published',
+								value: book.first_publish_year?.toString() || '_Unknown_',
+								inline: true,
+							},
+							{
+								name: '⭐ Rating',
+								value: ratingDisplay,
+								inline: true,
+							},
+							{
+								name: '🏷️ Genres',
+								value: genres,
+								inline: false,
+							},
+							{
+								name: '📝 Description',
+								value: description,
+								inline: false,
+							},
+						],
+						footer: {
+							text: 'Data from Open Library',
+						},
+					};
+
+					return {
+						type: 4 as const,
+						data: {
+							embeds: [embed],
+						},
+					};
+				})
+			)
+		)
+	);
+
+	// /help command - List all available commands
+	const help = Ix.global(
+		{
+			name: 'help',
+			description: 'List all available Bramble bot commands',
+		},
+		Effect.succeed({
+			type: 4 as const,
+			data: {
+				embeds: [
+					{
+						title: '📚 Bramble Book Club Bot',
+						description: 'Your friendly book club assistant! Here are all available commands:',
+						color: 0x2ecc71, // Green
+						fields: [
+							{
+								name: '📖 Book Commands',
+								value: [
+									'`/quickcheck [book] [author?]` — Look up a book\'s description & rating',
+									'`/createbook [title]` — Add a new book to the club list',
+									'`/getbook` — Browse and manage existing books',
+								].join('\n'),
+								inline: false,
+							},
+							{
+								name: '❓ Question Commands',
+								value: [
+									'`/submitquestion [book] [question]` — Submit a discussion question',
+									'`/listquestions [book]` — View all questions for a book',
+								].join('\n'),
+								inline: false,
+							},
+							{
+								name: '🔧 Utility Commands',
+								value: [
+									'`/ping` — Check if the bot is online',
+									'`/help` — Show this help message',
+								].join('\n'),
+								inline: false,
+							},
+							{
+								name: '🚧 Coming Soon',
+								value: [
+									'`/poll` — Create and manage polls',
+									'`/meeting` — Schedule book club meetings',
+									'`/ask` — Ask the AI about a book',
+									'`/export` — Export data to Google Sheets',
+								].join('\n'),
+								inline: false,
+							},
+						],
+						footer: {
+							text: 'Bramble • Happy reading! 🌿',
+						},
+					},
+				],
+			},
+		})
+	);
+
 	// Build and register all commands
 	const interactions = Ix.builder
 		.add(ping)
@@ -612,7 +850,8 @@ const make = Effect.gen(function* () {
 		.add(plainTextButton)
 		.add(getbook)
 		.add(bookOptions)
-		
+		.add(quickCheck)
+		.add(help)
 		.catchAllCause(Effect.logError);
 
 	yield* registry.register(interactions);
@@ -629,6 +868,10 @@ const make = Effect.gen(function* () {
 	// ✅ /ping
 	// ✅ /submitquestion [book] [question] (with Add Another flow)
 	// ✅ /listquestions [book] (with Plain Text button)
+	// ✅ /quickcheck [book] [author?] (Open Library lookup)
+	// ✅ /createbook [title] (Emeka)
+	// ✅ /getbook (Emeka - select dropdown)
+	// ✅ /help (list all commands)
 
 	yield* Effect.log('Gateway events service initialized');
 });
