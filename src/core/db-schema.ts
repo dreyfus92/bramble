@@ -43,6 +43,42 @@ export const bookQuestions = sqliteTable("book_questions", {
 });
 
 // ============================================================================
+// Book Nominations (Monthly book selection process)
+// ============================================================================
+
+/**
+ * Book nominations table.
+ * Stores books nominated by users for the monthly selection poll.
+ */
+export const bookNominations = sqliteTable("book_nominations", {
+	id: int().primaryKey({ autoIncrement: true }).notNull(),
+	guildId: text().notNull(),
+	bookTitle: text().notNull(),
+	nominatedBy: text().notNull(),
+	nominatedAt: text().notNull(),
+	/** Month identifier in YYYY-MM format (e.g., "2026-01") */
+	month: text().notNull(),
+});
+
+// ============================================================================
+// Poll Winners (Monthly winner history)
+// ============================================================================
+
+/**
+ * Poll winners table.
+ * Tracks the winning book from each month's selection poll.
+ */
+export const pollWinners = sqliteTable("poll_winners", {
+	id: int().primaryKey({ autoIncrement: true }).notNull(),
+	guildId: text().notNull(),
+	/** Month identifier in YYYY-MM format (e.g., "2026-01") */
+	month: text().notNull(),
+	bookTitle: text().notNull(),
+	voteCount: int().notNull(),
+	announcedAt: text().notNull(),
+});
+
+// ============================================================================
 // Polls
 // ============================================================================
 
@@ -62,6 +98,14 @@ export const polls = sqliteTable("polls", {
 	createdAt: text().notNull(),
 	endsAt: text(),
 	active: int().notNull().default(1),
+	/** Poll phase: 1 = nomination poll (multi-vote), 2 = final poll (single-vote) */
+	phase: int().notNull().default(1),
+	/** Whether users can vote for multiple options (1) or single option only (0) */
+	multiVote: int().notNull().default(1),
+	/** Links Phase 2 poll to its parent Phase 1 poll */
+	parentPollId: int().references((): AnySQLiteColumn => polls.id),
+	/** Month identifier in YYYY-MM format (e.g., "2026-01") */
+	month: text(),
 });
 
 /**
