@@ -144,7 +144,7 @@ const make = Effect.gen(function* () {
 		Ix.idStartsWith("add_another_q:"),
 		Ix.Interaction.pipe(
 			Effect.flatMap((interaction) =>
-				Effect.gen(function* () {
+				Effect.sync(() => {
 					const data = interaction.data;
 					if (!data || !("custom_id" in data)) {
 						return {
