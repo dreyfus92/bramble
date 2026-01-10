@@ -18,14 +18,19 @@ type OpenLibrarySearchResult = {
 		first_publish_year?: number;
 		subject?: string[];
 		cover_i?: number;
-		ratings_average?: number;
-		ratings_count?: number;
 		key?: string;
 	}>;
 };
 
 type OpenLibraryWork = {
 	description?: string | { value: string };
+};
+
+type OpenLibraryRatings = {
+	summary?: {
+		average?: number;
+		count?: number;
+	};
 };
 
 // Helper to fetch from Open Library
@@ -108,9 +113,13 @@ export const createBookCommands = (db: DbService) => {
 
 					const book = searchResult.docs[0];
 
-					// Try to get description from works API
+					// Try to get description and ratings from works API
 					let description = "_No description available_";
+					let ratingAverage: number | undefined;
+					let ratingCount: number | undefined;
+
 					if (book.key) {
+						// Fetch work details for description
 						const workResult = yield* fetchOpenLibrary<OpenLibraryWork>(
 							`https://openlibrary.org${book.key}.json`,
 						).pipe(Effect.catchAll(() => Effect.succeed({} as OpenLibraryWork)));
@@ -123,15 +132,25 @@ export const createBookCommands = (db: DbService) => {
 							// Truncate to 500 chars
 							description = rawDesc.length > 500 ? `${rawDesc.substring(0, 497)}...` : rawDesc;
 						}
+
+						// Fetch ratings from ratings endpoint
+						const ratingsResult = yield* fetchOpenLibrary<OpenLibraryRatings>(
+							`https://openlibrary.org${book.key}/ratings.json`,
+						).pipe(Effect.catchAll(() => Effect.succeed({} as OpenLibraryRatings)));
+
+						if (ratingsResult.summary) {
+							ratingAverage = ratingsResult.summary.average;
+							ratingCount = ratingsResult.summary.count;
+						}
 					}
 
 					// Build rating display
 					let ratingDisplay = "_No ratings yet_";
-					if (book.ratings_average) {
-						const stars = "⭐".repeat(Math.round(book.ratings_average));
-						ratingDisplay = `${stars} **${book.ratings_average.toFixed(1)}/5**`;
-						if (book.ratings_count) {
-							ratingDisplay += ` (${book.ratings_count.toLocaleString()} ratings)`;
+					if (ratingAverage !== undefined && ratingAverage > 0) {
+						const stars = "⭐".repeat(Math.round(ratingAverage));
+						ratingDisplay = `${stars} **${ratingAverage.toFixed(1)}/5**`;
+						if (ratingCount !== undefined && ratingCount > 0) {
+							ratingDisplay += ` (${ratingCount.toLocaleString()} rating${ratingCount === 1 ? "" : "s"})`;
 						}
 					}
 
