@@ -1,15 +1,14 @@
 # Bramble 
 
-A Discord bot for managing book club activities with polls, meetings, discussions, and AI-powered Q&A.
+A Discord bot for managing book club activities with polls, nominations, and discussions.
 
 ## Features
 
-- **Custom Polls** - Create polls with button voting for book selections, discussion topics, etc.
-- **Book Sessions** - Manage reading sessions with start/end dates
-- **Question Submission** - Members can submit questions for book discussions
-- **Meeting Scheduler** - Schedule and manage book club meetings with reminders
-- **AI Q&A** - Ask questions powered by Groq LLM with rate limiting
-- **Data Export** - Export poll results and session data to Google Sheets
+- **Two-Phase Monthly Poll System** - Monthly book selection through nominations → Phase 1 (multi-vote) → Phase 2 (single-vote) → Winner tracking
+- **Book Nominations** - Monthly book nomination system with author tracking (format: "Title by Author")
+- **Question Submission** - Submit discussion questions for books with chaining support (add multiple questions in one session)
+- **Book Lookup** - Quick book information lookup using Open Library API (description, rating, cover, genres)
+- **Book Management** - Create and manage book entries with meeting dates
 
 ## Tech Stack
 
@@ -25,6 +24,12 @@ A Discord bot for managing book club activities with polls, meetings, discussion
 bramble/
 ├── src/
 │   ├── main.ts              # Entry point
+│   ├── commands/            # Modular command handlers
+│   │   ├── utility.ts      # ping, help
+│   │   ├── questions.ts    # Question submission flow
+│   │   ├── books.ts        # Book lookup & management
+│   │   ├── polls.ts        # Two-phase poll system
+│   │   └── index.ts        # Barrel export
 │   ├── core/                # Core services
 │   │   ├── db-client.ts     # Database client
 │   │   ├── db-schema.ts     # Drizzle schema
@@ -34,8 +39,10 @@ bramble/
 │   │   └── event-bus.ts     # Internal events
 │   ├── services/            # Bot services
 │   ├── static/              # Environment config
-│   └── utils/               # Utilities
+│   └── utils/               # Utilities (embed builder, helpers)
 ├── drizzle.config.ts        # Database config
+├── Dockerfile               # Docker container configuration
+├── .dockerignore            # Docker build exclusions
 ├── package.json
 └── tsconfig.json
 ```
@@ -101,19 +108,61 @@ pnpm build
 pnpm start
 ```
 
+### Docker Deployment
+
+The bot includes a Dockerfile for containerized deployment. Build and run with Docker:
+
+```bash
+# Build the image
+docker build -t bramble:latest .
+
+# Run the container
+docker run --env-file .env bramble:latest
+```
+
+The Dockerfile uses a multi-stage build for optimized image size and can be deployed to platforms like Dokploy or any Docker-compatible hosting service. Ensure all required environment variables are set in your deployment platform.
+
 ## Commands
+
+### Utility Commands
 
 | Command | Description |
 |---------|-------------|
 | `/ping` | Check if bot is running |
-| `/poll create` | Create a new poll |
-| `/poll end` | End a poll and show results |
-| `/question submit` | Submit a discussion question |
-| `/question list` | View submitted questions |
-| `/meeting schedule` | Schedule a book club meeting |
-| `/meeting list` | List upcoming meetings |
-| `/ask` | Ask the AI a question |
-| `/export` | Export data to Google Sheets |
+| `/help` | List all available commands |
+
+### Book Commands
+
+| Command | Description |
+|---------|-------------|
+| `/quickcheck [book] [author?]` | Look up a book's description and rating from Open Library |
+| `/createbook [title]` | Add a new book to the club list |
+| `/getbook` | Browse and manage existing books |
+
+### Question Commands
+
+| Command | Description |
+|---------|-------------|
+| `/submitquestion [book] [question]` | Submit a discussion question (supports chaining with "Add Another" button) |
+| `/listquestions [book]` | View all submitted questions for a book (with plain text copy option) |
+
+### Poll System Commands
+
+| Command | Description |
+|---------|-------------|
+| `/nominatebook [title] [author]` | Nominate a book for the monthly book club selection |
+| `/listnominations [month?]` | View all book nominations for a month (defaults to current month) |
+| `/pollstatus` | View current poll standings |
+| `/pastwinners` | View past monthly winners |
+
+### Admin-Only Poll Commands
+
+| Command | Description |
+|---------|-------------|
+| `/startpoll [month?]` | Start Phase 1 multi-vote poll from nominations |
+| `/closepoll` | Close the active poll and display final results |
+| `/startfinalpoll` | Start Phase 2 single-vote poll with top 3 books from Phase 1 |
+| `/clearnominations [month?]` | Clear all nominations for a month |
 
 ## License
 
