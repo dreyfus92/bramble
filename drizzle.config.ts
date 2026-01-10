@@ -15,7 +15,6 @@ export default defineConfig({
 	schema: "./src/core/db-schema.ts",
 	dialect: "turso",
 	dbCredentials: {
-		// biome-ignore lint/style/noNonNullAssertion: Required env variable
 		url: process.env.TURSO_DATABASE_URL!,
 		authToken: process.env.TURSO_AUTH_TOKEN,
 	},
