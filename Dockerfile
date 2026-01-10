@@ -4,16 +4,17 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable pnpm
 
 FROM base AS build
-ENV NODE_ENV=production
 COPY . /usr/src/app
 WORKDIR /usr/src/app
 RUN --mount=type=cache,id=/pnpm/store,target=/pnpm/store pnpm install --frozen-lockfile
 RUN pnpm run build
-RUN pnpm deploy --prod /prod/bramble
 
 FROM base AS runtime
 ENV NODE_ENV=production
-COPY --from=build /prod/bramble /prod/bramble
 WORKDIR /prod/bramble
+COPY --from=build /usr/src/app/package.json ./
+COPY --from=build /usr/src/app/pnpm-lock.yaml ./
+RUN --mount=type=cache,id=/pnpm/store,target=/pnpm/store pnpm install --prod --frozen-lockfile
+COPY --from=build /usr/src/app/dist ./dist
 EXPOSE 3000
 CMD [ "node", "dist/main.js" ]
