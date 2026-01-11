@@ -18,14 +18,15 @@ export interface WebhookRequest {
 }
 
 /**
- * Get crypto implementation for Node.js environment.
+ * Get crypto implementation for Node.js/Edge runtime environment.
+ * Works in both Node.js (18+) and Edge Functions (Web Crypto API).
  */
 const getCrypto = () => {
-	// Use Node.js webcrypto if available (Node.js 18+)
+	// Web Crypto API is available in both Node.js 18+ and Edge Functions
 	if (globalThis.crypto?.subtle) {
 		return globalThis.crypto.subtle;
 	}
-	// Fallback: import dynamically (shouldn't be needed for Node.js 18+)
+	// Fallback for older Node.js (shouldn't be needed for Node.js 18+ or Edge Functions)
 	// eslint-disable-next-line @typescript-eslint/no-require-imports
 	const { webcrypto } = require("node:crypto");
 	return webcrypto.subtle;

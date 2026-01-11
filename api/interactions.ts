@@ -1,44 +1,66 @@
 /**
- * Vercel serverless function for Discord interaction webhooks.
+ * Vercel Edge Function for Discord interaction webhooks.
  * Handles all Discord slash commands and interactions.
+ * Uses Edge Functions to access raw body for signature verification.
  */
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { Effect } from "effect";
 import { processWebhook } from "../src/core/discord-webhook.ts";
 
+export const config = {
+	runtime: "edge",
+};
+
 /**
- * Main handler for Discord webhook interactions.
+ * Convert Headers object to a plain record
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+function headersToRecord(headers: Headers): Record<string, string> {
+	const record: Record<string, string> = {};
+	headers.forEach((value, key) => {
+		record[key] = value;
+	});
+	return record;
+}
+
+/**
+ * Main handler for Discord webhook interactions (Edge Function).
+ */
+export default async function handler(request: Request): Promise<Response> {
 	// Log that the handler was called
 	console.log("[INTERACTIONS] Handler called", {
-		method: req.method,
-		url: req.url,
-		headers: Object.keys(req.headers || {}),
+		method: request.method,
+		url: request.url,
+		headers: Array.from(request.headers.keys()),
 		timestamp: new Date().toISOString(),
 	});
 
 	// Only accept POST requests
-	if (req.method !== "POST") {
-		console.log("[INTERACTIONS] Method not allowed:", req.method);
-		return res.status(405).json({ error: "Method not allowed" });
+	if (request.method !== "POST") {
+		console.log("[INTERACTIONS] Method not allowed:", request.method);
+		return new Response(
+			JSON.stringify({ error: "Method not allowed" }),
+			{
+				status: 405,
+				headers: { "Content-Type": "application/json" },
+			},
+		);
 	}
 
 	try {
 		console.log("[INTERACTIONS] Processing webhook request...");
-		// Get the body string for signature verification
-		// Vercel automatically parses JSON bodies, so we stringify it back
-		// This is necessary because Discord signature verification needs the raw body string
-		const bodyString = typeof req.body === "string" 
-			? req.body 
-			: JSON.stringify(req.body || {});
+		
+		// Get the raw body string for signature verification
+		// Edge Functions allow us to access the raw body, which is required for Discord signature verification
+		const bodyString = await request.text();
 
 		console.log("[INTERACTIONS] Body prepared, processing with Effect...");
+
+		// Convert headers to plain record for compatibility
+		const headers = headersToRecord(request.headers);
 
 		// Process the webhook request using Effect runtime
 		const response = await Effect.runPromise(
 			processWebhook({
-				headers: req.headers as Record<string, string | string[] | undefined>,
+				headers,
 				body: bodyString,
 			}),
 		);
@@ -46,7 +68,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 		console.log("[INTERACTIONS] Response generated successfully");
 		
 		// Return interaction response
-		return res.status(200).json(response);
+		return new Response(JSON.stringify(response), {
+			status: 200,
+			headers: { "Content-Type": "application/json" },
+		});
 	} catch (error: unknown) {
 		// Log the full error for debugging
 		console.error("Error processing webhook:", error);
@@ -64,13 +89,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 		console.error("Error details:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
 
 		// Check for signature verification errors
-		if (
+		const isSignatureError =
 			errorMessage.includes("signature") ||
 			errorMessage.includes("verification") ||
-			errorMessage.includes("Invalid request signature")
-		) {
+			errorMessage.includes("Invalid request signature") ||
+			errorMessage.includes("BadWebhookSignature") ||
+			(error &&
+				typeof error === "object" &&
+				"_tag" in error &&
+				(error as { _tag: string })._tag === "BadWebhookSignature");
+
+		if (isSignatureError) {
 			console.error("Webhook verification failed:", error);
-			return res.status(401).json({ error: "Invalid signature" });
+			return new Response(JSON.stringify({ error: "Invalid signature" }), {
+				status: 401,
+				headers: { "Content-Type": "application/json" },
+			});
 		}
 
 		// Check for configuration errors (missing env vars)
@@ -82,15 +116,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 			errorMessage.includes("TURSO")
 		) {
 			console.error("Configuration error:", error);
-			return res.status(500).json({ 
-				error: "Configuration error - check environment variables" 
-			});
+			return new Response(
+				JSON.stringify({ error: "Configuration error - check environment variables" }),
+				{
+					status: 500,
+					headers: { "Content-Type": "application/json" },
+				},
+			);
 		}
 
 		// Generic error response - always return something to Discord
-		return res.status(500).json({ 
+		const responseBody: { error: string; message?: string } = {
 			error: "Internal server error",
-			message: process.env.NODE_ENV === "development" ? errorMessage : undefined
+		};
+		
+		// Only include message in development
+		if (process.env.NODE_ENV === "development") {
+			responseBody.message = errorMessage;
+		}
+
+		return new Response(JSON.stringify(responseBody), {
+			status: 500,
+			headers: { "Content-Type": "application/json" },
 		});
 	}
 }
