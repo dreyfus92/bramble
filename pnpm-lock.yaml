@@ -36,6 +36,9 @@ importers:
       '@biomejs/biome':
         specifier: ^2.3.2
         version: 2.3.10
+      '@edge-runtime/types':
+        specifier: ^4.0.0
+        version: 4.0.0
       '@effect/language-service':
         specifier: ^0.41.1
         version: 0.41.1
@@ -162,6 +165,14 @@ packages:
   '@edge-runtime/primitives@4.1.0':
     resolution: {integrity: sha512-Vw0lbJ2lvRUqc7/soqygUX216Xb8T3WBZ987oywz6aJqRxcwSVWwr9e+Nqo2m9bxobA9mdbWNNoRY6S9eko1EQ==}
     engines: {node: '>=16'}
+
+  '@edge-runtime/primitives@6.0.0':
+    resolution: {integrity: sha512-FqoxaBT+prPBHBwE1WXS1ocnu/VLTQyZ6NMUBAdbP7N2hsFTTxMC/jMu2D/8GAlMQfxeuppcPuCUk/HO3fpIvA==}
+    engines: {node: '>=18'}
+
+  '@edge-runtime/types@4.0.0':
+    resolution: {integrity: sha512-6HiX1oSir5R+X74IzM08fCQkR5mTcOxgfFVdn335jz/CckIHVFphh7hNkIcI+XsMYhAfWOJ5b8TfBU/Hbx1EIQ==}
+    engines: {node: '>=18'}
 
   '@edge-runtime/vm@3.2.0':
     resolution: {integrity: sha512-0dEVyRLM/lG4gp1R/Ik5bfPl/1wX00xFwd5KcNH602tzBa09oF7pbTKETEhR1GjZ75K6OJnYFu8II2dyMhONMw==}
@@ -3125,6 +3136,12 @@ snapshots:
   '@edge-runtime/ponyfill@2.4.2': {}
 
   '@edge-runtime/primitives@4.1.0': {}
+
+  '@edge-runtime/primitives@6.0.0': {}
+
+  '@edge-runtime/types@4.0.0':
+    dependencies:
+      '@edge-runtime/primitives': 6.0.0
 
   '@edge-runtime/vm@3.2.0':
     dependencies:

@@ -40,6 +40,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.2",
+		"@edge-runtime/types": "^4.0.0",
 		"@effect/language-service": "^0.41.1",
 		"@effect/platform": "^0.92.1",
 		"@effect/platform-node": "^0.98.3",
