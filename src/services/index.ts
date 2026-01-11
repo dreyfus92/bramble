@@ -1,21 +1,7 @@
-import { Layer } from "effect";
-import { GatewayEventsLive } from "./gateway-events.ts";
-
 /**
- * Combined service layer for the Book Club bot.
- * Merges all service layers into a single layer.
+ * Service exports for the Book Club bot.
+ * 
+ * Note: This file is kept for potential future use, but the bot now operates
+ * in serverless mode via webhooks rather than a long-running gateway service.
  */
-export const BookClubServiceLayer = Layer.mergeAll(
-	GatewayEventsLive,
-	// Additional services will be added here:
-	// PollServiceLive,
-	// BookClubServiceLive,
-	// MeetingSchedulerLive,
-	// LLMServiceLive,
-);
-
-/**
- * Builds the live service layer with all dependencies.
- */
-export const buildBookClubLiveLayer = <A, R>(deps: Layer.Layer<A, R>) =>
-	BookClubServiceLayer.pipe(Layer.provide(deps));
+export { buildInteractions } from "./interactions.ts";

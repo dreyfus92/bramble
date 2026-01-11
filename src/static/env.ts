@@ -5,6 +5,8 @@ export const nodeEnv = Config.withDefault(Config.string("NODE_ENV"), "developmen
 
 // Discord configuration
 export const discordBotToken = Config.redacted("DISCORD_BOT_TOKEN");
+export const discordPublicKey = Config.redacted("DISCORD_PUBLIC_KEY");
+export const discordApplicationId = Config.string("DISCORD_APPLICATION_ID");
 
 // Database configuration (Turso)
 export const databaseUrl = Config.redacted("TURSO_DATABASE_URL");

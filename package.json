@@ -6,12 +6,12 @@
 	"private": true,
 	"scripts": {
 		"build": "tsdown",
-		"dev": "node --import tsx src/main.ts",
-		"start": "node dist/main.js",
+		"dev": "npx --yes vercel@latest dev --yes",
 		"check": "tsc --noEmit",
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
 		"format": "biome format .",
+		"register-commands": "node --import tsx src/scripts/register-commands.ts",
 		"db:push": "pnpm drizzle-kit push",
 		"db:generate": "pnpm drizzle-kit generate",
 		"db:migrate": "pnpm drizzle-kit migrate",
@@ -30,8 +30,12 @@
 	},
 	"dependencies": {
 		"@libsql/client": "^0.15.15",
+		"@vercel/node": "^5.5.16",
+		"dfx": "^0.127.0",
 		"dotenv": "^17.2.3",
 		"drizzle-orm": "^0.44.6",
+		"effect": "^3.19.14",
+		"groq-sdk": "^0.37.0",
 		"pnpm": "^10.26.2"
 	},
 	"devDependencies": {
@@ -40,12 +44,10 @@
 		"@effect/platform": "^0.92.1",
 		"@effect/platform-node": "^0.98.3",
 		"@types/node": "^24.7.1",
-		"dfx": "^0.126.0",
 		"drizzle-kit": "^0.31.5",
-		"effect": "^3.18.4",
-		"groq-sdk": "^0.33.0",
 		"tsdown": "^0.15.7",
 		"tsx": "^4.19.0",
-		"typescript": "^5.9.3"
+		"typescript": "^5.9.3",
+		"vercel": "^50.1.6"
 	}
 }
